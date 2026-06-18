@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 /* Protocol constants */
 #define MT_MAX_PAYLOAD        65536  /* 64 KB max packet */

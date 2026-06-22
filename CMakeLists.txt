@@ -1,137 +1,103 @@
 cmake_minimum_required(VERSION 3.16)
-project(Meshtalk VERSION 0.1.0 LANGUAGES C)
+project(meshtalk VERSION 1.0.0 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_C_EXTENSIONS OFF)
 
-# Options
-option(MESHTALK_ASAN "Enable AddressSanitizer" OFF)
-option(MESHTALK_TLS "Enable TLS encryption (OpenSSL)" OFF)
-option(MESHTALK_TESTS "Build tests and simulator" ON)
-option(MESHTALK_PDCURSES "Use PDCurses (Windows)" OFF)
+option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
+option(ENABLE_TLS "Enable OpenSSL TLS support" OFF)
+option(BUILD_TESTS "Build tests" OFF)
+option(ENABLE_E2EE "Enable end-to-end encryption via libsodium" ON)
 
-# Platform detection
+if(ENABLE_ASAN)
+    if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
+    elseif(MSVC)
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /fsanitize=address")
+    endif()
+endif()
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -pedantic")
+
 if(WIN32)
-    set(PLATFORM_WINDOWS ON)
-elseif(APPLE)
-    set(PLATFORM_MACOS ON)
-elseif(UNIX)
-    set(PLATFORM_LINUX ON)
-endif()
-
-# Compiler warnings
-add_compile_options(
-    $<$<C_COMPILER_ID:GNU>:-Wall -Wextra -Wpedantic>
-    $<$<C_COMPILER_ID:Clang>:-Wall -Wextra -Wpedantic>
-    $<$<C_COMPILER_ID:AppleClang>:-Wall -Wextra -Wpedantic>
-    $<$<C_COMPILER_ID:MSVC>:/W4>
-)
-
-# AddressSanitizer
-if(MESHTALK_ASAN)
-    if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
-        add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
-        add_link_options(-fsanitize=address)
-    else()
-        message(WARNING "AddressSanitizer is not supported for this compiler")
-    endif()
-endif()
-
-# Source groups
-set(NET_SOURCES
-    src/net_common.c
-)
-
-if(PLATFORM_WINDOWS)
-    list(APPEND NET_SOURCES src/net_win.c)
+    add_definitions(-D_WIN32_WINNT=0x0601 -DWIN32_LEAN_AND_MEAN)
+    set(PLATFORM_SOURCES
+        src/net/net_win.c
+        src/tui/tui_win.c
+    )
+    set(PLATFORM_LIBS ws2_32)
+    set(TEST_LIBS ws2_32)
 else()
-    list(APPEND NET_SOURCES src/net_unix.c)
-endif()
-
-set(CORE_SOURCES
-    src/meshtalk.c
-    src/discovery.c
-    src/peer.c
-    src/message.c
-    src/dedup.c
-    src/room.c
-    src/presence.c
-    src/persistence.c
-    src/security.c
-)
-
-set(UI_SOURCES
-    src/ui.c
-)
-
-set(ALL_SOURCES
-    ${NET_SOURCES}
-    ${CORE_SOURCES}
-    ${UI_SOURCES}
-    src/main.c
-)
-
-# Headers
-set(HEADERS
-    include/net.h
-    include/discovery.h
-    include/peer.h
-    include/message.h
-    include/dedup.h
-    include/room.h
-    include/presence.h
-    include/persistence.h
-    include/ui.h
-    include/security.h
-    include/meshtalk.h
-)
-
-# Main executable
-add_executable(meshtalk ${ALL_SOURCES} ${HEADERS})
-target_include_directories(meshtalk PRIVATE include)
-
-# Platform-specific linking
-if(PLATFORM_WINDOWS)
-    target_link_libraries(meshtalk PRIVATE ws2_32 iphlpapi)
-elseif(PLATFORM_MACOS OR PLATFORM_LINUX)
-    target_link_libraries(meshtalk PRIVATE pthread)
-endif()
-
-# NCurses
-if(PLATFORM_WINDOWS)
-    if(MESHTALK_PDCURSES)
-        # PDCurses should be available in the system or as a subdirectory
-        find_package(PDCurses)
-        if(PDCurses_FOUND)
-            target_include_directories(meshtalk PRIVATE ${PDCurses_INCLUDE_DIRS})
-            target_link_libraries(meshtalk PRIVATE ${PDCurses_LIBRARIES})
-            target_compile_definitions(meshtalk PRIVATE USE_PDCURSES)
-        else()
-            message(WARNING "PDCurses not found, using basic terminal mode")
-        endif()
-    endif()
-else()
-    find_package(Curses)
+    set(PLATFORM_SOURCES
+        src/net/net_posix.c
+        src/tui/tui_posix.c
+    )
+    set(PLATFORM_LIBS pthread m)
+    set(TEST_LIBS pthread m)
+    find_package(Curses QUIET)
     if(CURSES_FOUND)
-        target_include_directories(meshtalk PRIVATE ${CURSES_INCLUDE_DIRS})
-        target_link_libraries(meshtalk PRIVATE ${CURSES_LIBRARIES})
-        target_compile_definitions(meshtalk PRIVATE USE_NCURSES)
-    else()
-        message(WARNING "NCurses not found, using basic terminal mode")
+        set(PLATFORM_LIBS ${PLATFORM_LIBS} ${CURSES_LIBRARIES})
+        add_definitions(-DHAVE_NCURSES)
     endif()
 endif()
 
-# TLS (OpenSSL)
-if(MESHTALK_TLS)
+if(ENABLE_TLS)
     find_package(OpenSSL REQUIRED)
-    target_include_directories(meshtalk PRIVATE ${OPENSSL_INCLUDE_DIR})
-    target_link_libraries(meshtalk PRIVATE ${OPENSSL_LIBRARIES})
-    target_compile_definitions(meshtalk PRIVATE USE_TLS)
+    set(PLATFORM_LIBS ${PLATFORM_LIBS} OpenSSL::SSL OpenSSL::Crypto)
+    add_definitions(-DHAVE_TLS)
 endif()
 
-# Tests
-if(MESHTALK_TESTS)
+if(ENABLE_E2EE)
+    find_library(SODIUM_LIBRARY sodium
+        HINTS /opt/homebrew/opt/libsodium/lib /usr/local/lib /usr/lib
+    )
+    find_path(SODIUM_INCLUDE_DIR sodium.h
+        HINTS /opt/homebrew/opt/libsodium/include /usr/local/include /usr/include
+    )
+    if(SODIUM_LIBRARY AND SODIUM_INCLUDE_DIR)
+        set(PLATFORM_LIBS ${PLATFORM_LIBS} ${SODIUM_LIBRARY})
+        include_directories(${SODIUM_INCLUDE_DIR})
+        add_definitions(-DHAVE_SODIUM)
+        message(STATUS "Found libsodium: ${SODIUM_LIBRARY}")
+    else()
+        message(WARNING "libsodium not found; E2EE disabled. Install with: brew install libsodium")
+    endif()
+endif()
+
+set(SOURCES
+    src/main.c
+    src/util/uuid.c
+    src/util/json.c
+    src/message/message.c
+    src/peer/peer.c
+    src/discovery/discovery.c
+    src/room/room.c
+    src/persistence/storage.c
+    src/crypto/crypto.c
+    ${PLATFORM_SOURCES}
+)
+
+set(HEADERS
+    src/common.h
+    src/net/net.h
+    src/util/uuid.h
+    src/util/json.h
+    src/message/message.h
+    src/peer/peer.h
+    src/discovery/discovery.h
+    src/room/room.h
+    src/persistence/storage.h
+    src/crypto/crypto.h
+    src/tui/tui.h
+)
+
+add_executable(meshtalk ${SOURCES} ${HEADERS})
+target_include_directories(meshtalk PRIVATE src)
+target_link_libraries(meshtalk ${PLATFORM_LIBS})
+
+if(BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()

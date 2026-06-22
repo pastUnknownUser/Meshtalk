@@ -157,11 +157,8 @@ int message_list_add(message_list_t* list, const message_t* msg) {
 
 int message_list_get(message_list_t* list, int limit, message_t* out) {
     int n = 0;
-    message_node_t* cur = list->head;
-    while (cur && cur->next) cur = cur->next;
-
     int skip = list->count > limit ? list->count - limit : 0;
-    cur = list->head;
+    message_node_t* cur = list->head;
     for (int i = 0; cur && i < list->count; i++) {
         if (i >= skip && n < limit) {
             memcpy(&out[n], &cur->msg, sizeof(message_t));

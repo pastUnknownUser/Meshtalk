@@ -156,17 +156,25 @@ int discovery_process_packet(const char* data, int len, const char* from_addr) {
         int n = snprintf(buf, sizeof(buf), HERE_MSG, g_username, g_tcp_port, g_node_id);
         net_udp_send(g_disc_sock, buf, (size_t)n, from_addr, DISCOVERY_PORT);
 
-        if (peer_find(node_id) == NULL && port > 0) {
-            peer_add(node_id, username, from_addr, port);
+        if (port > 0) {
+            peer_lock();
+            bool exists = peer_find(node_id) != NULL;
+            peer_unlock();
+            if (!exists) {
+                peer_add(node_id, username, from_addr, port);
+            }
         }
     } else if (strcmp(cmd, "HERE") == 0) {
-        if (peer_find(node_id) == NULL && port > 0) {
-            peer_add(node_id, username, from_addr, port);
-        } else {
+        if (port > 0) {
+            peer_lock();
             peer_t* p = peer_find(node_id);
-            if (p) {
-                peer_set_username(node_id, username);
+            if (!p) {
+                peer_unlock();
+                peer_add(node_id, username, from_addr, port);
+            } else {
+                strncpy(p->username, username, MAX_USERNAME_LEN);
                 p->last_seen_ms = now_ms();
+                peer_unlock();
             }
         }
     }

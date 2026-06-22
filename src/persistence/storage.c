@@ -93,24 +93,18 @@ int storage_load_config(char* node_id, size_t id_size, char* username, size_t un
 int storage_save_peers(void) {
     char path[512];
     get_config_path(path, sizeof(path));
-    strncat(path, "/peers.json", sizeof(path) - strlen(path) - 1);
+    strncat(path, "/peers.txt", sizeof(path) - strlen(path) - 1);
 
     FILE* f = fopen(path, "w");
     if (!f) return -1;
 
-    fprintf(f, "[\n");
     peer_lock();
-    int first = 1;
-    for (int i = 0; i < peer_count(); i++) {
+    for (int i = 0; ; i++) {
         peer_t* p = peer_get(i);
-        if (!p) continue;
-        if (!first) fprintf(f, ",\n");
-        first = 0;
-        fprintf(f, "  {\"node_id\":\"%s\",\"addr\":\"%s\",\"port\":%d}",
-                p->node_id, p->addr, p->port);
+        if (!p) break;
+        fprintf(f, "%s %s %d\n", p->node_id, p->addr, p->port);
     }
     peer_unlock();
-    fprintf(f, "\n]\n");
     fclose(f);
     return 0;
 }
@@ -118,11 +112,41 @@ int storage_save_peers(void) {
 int storage_load_peers(void) {
     char path[512];
     get_config_path(path, sizeof(path));
-    strncat(path, "/peers.json", sizeof(path) - strlen(path) - 1);
+    strncat(path, "/peers.txt", sizeof(path) - strlen(path) - 1);
 
-    FILE* f = fopen(path, "r");
-    if (!f) return -1;
-    fclose(f);
+    char buf[65536];
+    int n = read_file(path, buf, sizeof(buf));
+    if (n <= 0) return -1;
+
+    char* line = buf;
+    while (line && *line) {
+        while (*line == ' ' || *line == '\t' || *line == '\n' || *line == '\r') line++;
+        if (!*line) break;
+
+        char* space = strchr(line, ' ');
+        if (!space) break;
+        *space = '\0';
+        char* node_id = line;
+        line = space + 1;
+
+        space = strchr(line, ' ');
+        if (!space) break;
+        *space = '\0';
+        char* addr = line;
+        line = space + 1;
+
+        char* nl = strchr(line, '\n');
+        if (nl) *nl = '\0';
+        char* cr = strchr(line, '\r');
+        if (cr) *cr = '\0';
+
+        int port = atoi(line);
+        if (node_id[0] && addr[0] && port > 0) {
+            peer_add(node_id, NULL, addr, port);
+        }
+
+        line = nl ? nl + 1 : (cr ? cr + 1 : NULL);
+    }
     return 0;
 }
 
@@ -178,58 +202,92 @@ int storage_load_identity(unsigned char* sk, size_t sk_size,
 
 static char trusted_file[640] = {0};
 
+#define MAX_TRUSTED_KEYS 256
+static char g_trusted_ids[MAX_TRUSTED_KEYS][UUID_STR_LEN + 1];
+static char g_trusted_keys[MAX_TRUSTED_KEYS][BASE64_PK_LEN];
+static int g_trusted_count = 0;
+
 static int get_trusted_path(void) {
     if (trusted_file[0]) return 0;
     char dir[512];
     get_config_path(dir, sizeof(dir));
     ensure_dir(dir);
-    snprintf(trusted_file, sizeof(trusted_file), "%s/trusted_keys.json", dir);
+    snprintf(trusted_file, sizeof(trusted_file), "%s/trusted_keys.txt", dir);
     return 0;
 }
 
 int storage_add_trusted_key(const char* node_id, const char* public_key_b64) {
     if (get_trusted_path() != 0) return -1;
 
-    char buf[65536];
-    int n = read_file(trusted_file, buf, sizeof(buf));
-    if (n <= 0) {
-        json_builder_t jb;
-        json_init(&jb);
-        json_add_string(&jb, node_id, public_key_b64);
-        const char* json = json_build(&jb);
-        int ret = write_file(trusted_file, json);
-        json_free(&jb);
-        return ret;
+    for (int i = 0; i < g_trusted_count; i++) {
+        if (strcmp(g_trusted_ids[i], node_id) == 0) {
+            strncpy(g_trusted_keys[i], public_key_b64, BASE64_PK_LEN - 1);
+            g_trusted_keys[i][BASE64_PK_LEN - 1] = '\0';
+            return storage_save_trusted_keys();
+        }
     }
 
-    json_builder_t jb;
-    json_init(&jb);
-    json_add_string(&jb, node_id, public_key_b64);
-    const char* json = json_build(&jb);
-    int ret = write_file(trusted_file, json);
-    json_free(&jb);
-    return ret;
+    if (g_trusted_count >= MAX_TRUSTED_KEYS) return -1;
+    strncpy(g_trusted_ids[g_trusted_count], node_id, UUID_STR_LEN);
+    g_trusted_ids[g_trusted_count][UUID_STR_LEN] = '\0';
+    strncpy(g_trusted_keys[g_trusted_count], public_key_b64, BASE64_PK_LEN - 1);
+    g_trusted_keys[g_trusted_count][BASE64_PK_LEN - 1] = '\0';
+    g_trusted_count++;
+    return storage_save_trusted_keys();
 }
 
 int storage_is_key_trusted(const char* node_id) {
-    if (get_trusted_path() != 0) return 0;
-
-    char buf[65536];
-    int n = read_file(trusted_file, buf, sizeof(buf));
-    if (n <= 0) return 0;
-
-    char stored_pk[128];
-    if (json_parse_string(buf, node_id, stored_pk, sizeof(stored_pk)) != 0) return 0;
-    return stored_pk[0] ? 1 : 0;
+    for (int i = 0; i < g_trusted_count; i++) {
+        if (strcmp(g_trusted_ids[i], node_id) == 0) return 1;
+    }
+    return 0;
 }
 
 int storage_save_trusted_keys(void) {
-    (void)trusted_file;
+    if (get_trusted_path() != 0) return -1;
+
+    FILE* f = fopen(trusted_file, "w");
+    if (!f) return -1;
+    for (int i = 0; i < g_trusted_count; i++) {
+        fprintf(f, "%s %s\n", g_trusted_ids[i], g_trusted_keys[i]);
+    }
+    fclose(f);
     return 0;
 }
 
 int storage_load_trusted_keys(void) {
-    (void)trusted_file;
+    if (get_trusted_path() != 0) return -1;
+
+    char buf[65536];
+    int n = read_file(trusted_file, buf, sizeof(buf));
+    if (n <= 0) return -1;
+
+    g_trusted_count = 0;
+    char* line = buf;
+    while (line && *line && g_trusted_count < MAX_TRUSTED_KEYS) {
+        while (*line == ' ' || *line == '\t' || *line == '\n' || *line == '\r') line++;
+        if (!*line) break;
+
+        char* space = strchr(line, ' ');
+        if (!space) break;
+        *space = '\0';
+
+        char* key = space + 1;
+        char* nl = strchr(key, '\n');
+        if (nl) *nl = '\0';
+        char* cr = strchr(key, '\r');
+        if (cr) *cr = '\0';
+
+        if (line[0] && key[0]) {
+            strncpy(g_trusted_ids[g_trusted_count], line, UUID_STR_LEN);
+            g_trusted_ids[g_trusted_count][UUID_STR_LEN] = '\0';
+            strncpy(g_trusted_keys[g_trusted_count], key, BASE64_PK_LEN - 1);
+            g_trusted_keys[g_trusted_count][BASE64_PK_LEN - 1] = '\0';
+            g_trusted_count++;
+        }
+
+        line = nl ? nl + 1 : NULL;
+    }
     return 0;
 }
 

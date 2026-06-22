@@ -193,7 +193,7 @@ static char* build_user_list(void) {
     peer_unlock();
 
     size_t mylen = strlen(g_username);
-    if (pos + mylen + 1 < sizeof(buf)) {
+    if (pos + mylen + 1 <= sizeof(buf)) {
         memcpy(buf + pos, g_username, mylen);
         pos += mylen;
         buf[pos++] = '\0';
@@ -309,7 +309,6 @@ static void process_message(const message_t* msg, const char* from_id) {
                     char display[512];
                     snprintf(display, sizeof(display), "[E2EE] %s", plaintext);
                     tui_add_message(&g_tui, msg->sender_name, display);
-                    room_add_history(msg->room, msg);
 
                     message_t hist_msg = *msg;
                     strncpy(hist_msg.payload, plaintext, MAX_PAYLOAD_LEN - 1);

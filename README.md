@@ -57,18 +57,22 @@ The binary is at `build/meshtalk`.
 
 ### Commands
 
-| Command                  | Description                         |
-|--------------------------|-------------------------------------|
-| `/help`                  | Show all commands                   |
-| `/nick <name>`           | Set your display name               |
-| `/join <room>`           | Join a chat room                    |
-| `/create <room>`         | Create a new room                   |
-| `/leave`                 | Leave the current room              |
-| `/msg <user> <text>`     | Send a private message              |
-| `/users`                 | List online users                   |
-| `/history [n]`           | Show last n messages (default: 50)  |
-| `/ping`                  | Ping all connected peers            |
-| `/quit` or `/exit`       | Exit the application                |
+| Command                            | Description                              |
+|------------------------------------|------------------------------------------|
+| `/help`                            | Show all commands                        |
+| `/nick <name>`                     | Set your display name                    |
+| `/join <room>`                     | Join a chat room                         |
+| `/create <room>`                   | Create a new room                        |
+| `/leave`                           | Leave the current room                   |
+| `/msg <user> <text>`               | Send a private message (E2EE if key known)|
+| `/users`                           | List online users                        |
+| `/history [n]`                     | Show last n messages (default: 50)       |
+| `/ping`                            | Ping all connected peers                 |
+| `/quit` or `/exit`                 | Exit the application                     |
+| `/e2ee_create <room>`              | Create an encrypted room                 |
+| `/e2ee_invite <user> <room>`       | Invite a user to an encrypted room       |
+| `/trust <user>`                    | Trust a peer's public key                |
+| `/key`                             | Show your public key                     |
 
 ### Multi-Machine Test
 
@@ -110,8 +114,11 @@ cmake .. -DBUILD_TESTS=ON -DENABLE_ASAN=ON
 # TLS encryption via OpenSSL
 cmake .. -DENABLE_TLS=ON
 
+# End-to-end encryption via libsodium (enabled by default)
+cmake .. -DENABLE_E2EE=ON
+
 # All options together
-cmake .. -DENABLE_ASAN=ON -DBUILD_TESTS=ON -DENABLE_TLS=ON
+cmake .. -DENABLE_ASAN=ON -DBUILD_TESTS=ON -DENABLE_TLS=ON -DENABLE_E2EE=ON
 ```
 
 ## Run Tests
@@ -197,7 +204,7 @@ meshtalk/
 │   ├── discovery/          # UDP LAN discovery
 │   ├── room/               # Chat room management
 │   ├── persistence/        # Config file I/O
-│   ├── crypto/             # Optional TLS encryption
+│   ├── crypto/             # Optional E2EE (libsodium) + TLS (OpenSSL)
 │   └── tui/                # Terminal UI
 └── tests/
     ├── CMakeLists.txt       # Test build config

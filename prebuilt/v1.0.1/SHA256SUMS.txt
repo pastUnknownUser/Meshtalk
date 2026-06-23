@@ -1,0 +1,5 @@
+00401147b6d531304fca60d951a244550176aca93aee10295bd901a0b6aceecc  prebuilt/v1.0.1/meshtalk-darwin-arm64
+35c147a5a958c9db31d7b01d7137377e02513b32195fbf620c09ee8664b8d0e8  prebuilt/v1.0.1/meshtalk-linux-arm64
+b68b723265b34951f988b74f2098a2e64791bf87e40f981dbeb806df9e52d4ea  prebuilt/v1.0.1/meshtalk-linux-x64
+5f53d71dcd395724f26885bec29f67ec4acc2c732003aa8765a1068479c4b2e3  prebuilt/v1.0.1/meshtalk-windows-arm64.exe
+29d066ae1f1ccfa0f9e7db6e891da415d52ecdcab808985e1804d850dbfa626c  prebuilt/v1.0.1/meshtalk-windows-x64.exe

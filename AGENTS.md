@@ -83,6 +83,35 @@ Entry point: `src/main.c:938` — `app_init()` → subsystems → threads → ev
 - `_WIN32_WINNT=0x0601` and `WIN32_LEAN_AND_MEAN` set for Windows builds
 - **Config**: `~/.meshtalk/meshtalk.json` stores node ID/username; peers, rooms, and keys in adjacent files
 
+## Prebuilt binaries
+
+On every meaningful change, build prebuilt binaries and place them in `prebuilt/<version>/`:
+
+| Platform | Binary name |
+|----------|-------------|
+| macOS ARM64 | `meshtalk-darwin-arm64` |
+| Linux x86_64 | `meshtalk-linux-x64` |
+| Linux ARM64 | `meshtalk-linux-arm64` |
+| Windows x86_64 | `meshtalk-windows-x64.exe` |
+| Windows ARM64 | `meshtalk-windows-arm64.exe` |
+
+- **macOS agent**: build only macOS ARM64
+- **Linux agent**: build Linux x86_64, Linux ARM64, Windows x86_64, Windows ARM64 (use `zig cc` for cross-compilation)
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+# copy binary to prebuilt/<version>/
+mkdir -p prebuilt/<version>
+cp build/meshtalk prebuilt/<version>/meshtalk-<platform>
+# generate hashes
+shasum -a 256 prebuilt/<version>/* > prebuilt/<version>/SHA256SUMS.txt
+git add prebuilt/<version>/SHA256SUMS.txt prebuilt/<version>/
+git commit -m "build: prebuilt binaries for <version>"
+```
+
+The current version is v1.0.1. Bump on meaningful changes.
+
 ## Conventions
 
 - C17, `meshtalk` executable, MIT license

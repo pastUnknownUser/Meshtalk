@@ -13,7 +13,7 @@ Testing/
 *.out
 meshtalk
 # but track prebuilt binaries
-!prebuilt/*.exe
+!prebuilt/**/*.exe
 
 # macOS
 .DS_Store

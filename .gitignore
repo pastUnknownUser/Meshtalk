@@ -2,7 +2,6 @@
 build/
 build_noasan/
 build_*/
-prebuilt/
 Testing/
 
 # Compiled objects
@@ -13,6 +12,8 @@ Testing/
 *.exe
 *.out
 meshtalk
+# but track prebuilt binaries
+!prebuilt/*.exe
 
 # macOS
 .DS_Store

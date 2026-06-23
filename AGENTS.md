@@ -3,22 +3,35 @@
 ## Build & test
 
 ```bash
-cmake -B build -DBUILD_TESTS=ON -DENABLE_ASAN=ON     # configure
-cmake --build build                                    # compile → build/meshtalk
-ctest --test-dir build --output-on-failure             # run all tests
-build/tests/test_simulator                             # 100-node sim, 30s
+cmake -B build                                    # configure
+cmake --build build                               # compile → build/meshtalk
+ctest --test-dir build --output-on-failure        # run all tests (needs -DBUILD_TESTS=ON)
+build/tests/test_simulator                        # 100-node sim, 30s
 ```
 
-| Option | Default | Description |
-|--------|---------|-------------|
+| Option | Default | Purpose |
+|--------|---------|---------|
 | `-DBUILD_TESTS=ON` | OFF | Build tests |
 | `-DENABLE_ASAN=ON` | OFF | AddressSanitizer |
-| `-DENABLE_E2EE=ON`  | ON | libsodium E2EE |
+| `-DENABLE_E2EE=ON` | ON | libsodium E2EE |
 | `-DENABLE_TLS=ON` | OFF | OpenSSL TLS |
+
+Add options to the configure line, e.g. `cmake -B build -DBUILD_TESTS=ON -DENABLE_ASAN=ON`.
 
 No linter, formatter, or CI config exists. Compiler warnings via `-Wall -Wextra -pedantic` baked into CMakeLists.txt.
 
-Pre-built binaries are in `prebuilt/`: `meshtalk-linux-arm64`, `meshtalk-windows-x64.exe`, `meshtalk-windows-arm64.exe`.
+Pre-built binaries for all platforms are on the [releases page](https://github.com/pastUnknownUser/Meshtalk/releases):
+
+| Platform | Binary |
+|----------|--------|
+| Linux x86_64 | `meshtalk-linux-x64` |
+| Linux ARM64 | `meshtalk-linux-arm64` |
+| macOS ARM64 | `meshtalk-darwin-arm64` |
+| Windows x86_64 | `meshtalk-windows-x64.exe` |
+| Windows ARM64 | `meshtalk-windows-arm64.exe` |
+
+Cross-compilation uses [zig cc](https://ziglang.org/) (e.g. `zig cc -target x86_64-windows-gnu`).
+See `CMakeLists.txt` for platform sources and linker flags.
 
 ## Architecture
 

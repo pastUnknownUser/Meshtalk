@@ -27,22 +27,35 @@ brew install cmake               # build system
 ### Build
 
 ```bash
-# Clone or navigate to the project directory
-cd meshtalk
+# Standard build (creates build directory automatically)
+cmake -B build
 
-# Create build directory and configure
-mkdir build && cd build
+# Compile
+cmake --build build
 
-# Standard build
-cmake ..
-
-# Build the application
-cmake --build .
-
-# Or just: make   (on Linux/macOS)
+# Binary is at build/meshtalk (or build/meshtalk.exe on Windows)
 ```
 
-The binary is at `build/meshtalk`.
+**Options** (add to the `cmake -B build` line):
+
+| Flag | Default | Purpose |
+|------|---------|---------|
+| `-DENABLE_E2EE=OFF` | ON | Disable libsodium E2EE |
+| `-DENABLE_TLS=ON` | OFF | Enable OpenSSL TLS |
+| `-DENABLE_ASAN=ON` | OFF | AddressSanitizer |
+| `-DBUILD_TESTS=ON` | OFF | Build tests |
+
+Example: `cmake -B build -DENABLE_TLS=ON -DBUILD_TESTS=ON`
+
+Pre-built binaries for all platforms are on the [releases page](https://github.com/pastUnknownUser/Meshtalk/releases):
+
+| Platform | Binary |
+|----------|--------|
+| Linux x86_64 | `meshtalk-linux-x64` |
+| Linux ARM64 | `meshtalk-linux-arm64` |
+| macOS ARM64 | `meshtalk-darwin-arm64` |
+| Windows x86_64 | `meshtalk-windows-x64.exe` |
+| Windows ARM64 | `meshtalk-windows-arm64.exe` |
 
 ### Run
 
@@ -83,57 +96,35 @@ The binary is at `build/meshtalk`.
 
 ### Single-Machine Test
 
-Open two terminals:
+Build once, then run two instances (change port for the second):
 
 ```bash
+cmake -B build
+cmake --build build
 # Terminal 1
-cd meshtalk/build
-./meshtalk
+./build/meshtalk
 # Type: /nick Alice
-```
 
-```bash
-# Terminal 2
-cd meshtalk/build
-# Use a different port for the second instance:
-# (edit src/common.h to change TCP_PORT, then rebuild)
-# Or just test in a VM/container
-```
-
----
-
-## Build Options
-
-```bash
-# AddressSanitizer (memory error detection)
-cmake .. -DENABLE_ASAN=ON
-
-# Build tests (requires ASan for best results)
-cmake .. -DBUILD_TESTS=ON -DENABLE_ASAN=ON
-
-# TLS encryption via OpenSSL
-cmake .. -DENABLE_TLS=ON
-
-# End-to-end encryption via libsodium (enabled by default)
-cmake .. -DENABLE_E2EE=ON
-
-# All options together
-cmake .. -DENABLE_ASAN=ON -DBUILD_TESTS=ON -DENABLE_TLS=ON -DENABLE_E2EE=ON
+# Terminal 2 (edit TCP_PORT in src/common.h:22 first, rebuild)
+# Or just use a VM/container for the second instance
 ```
 
 ## Run Tests
 
 ```bash
-# After configuring with -DBUILD_TESTS=ON
-cmake --build .
-ctest --output-on-failure
+# Build tests (ASan recommended)
+cmake -B build -DBUILD_TESTS=ON -DENABLE_ASAN=ON
+cmake --build build
+
+# Run all tests
+ctest --test-dir build --output-on-failure
 
 # Or run individual tests:
-./tests/test_message
-./tests/test_peer
-./tests/test_discovery
-./tests/test_net
-./tests/test_simulator   # launches 100 virtual nodes for 30s
+build/tests/test_message
+build/tests/test_peer
+build/tests/test_discovery
+build/tests/test_net
+build/tests/test_simulator   # 100 virtual nodes, 30s
 ```
 
 ## Architecture

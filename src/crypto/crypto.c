@@ -10,10 +10,10 @@
 
 identity_t g_identity;
 
+#ifdef HAVE_SODIUM
+
 static const unsigned char* get_sk(void) { return g_identity.secret_key; }
 static const unsigned char* get_pk(void) { return g_identity.public_key; }
-
-#ifdef HAVE_SODIUM
 
 int crypto_init(void) {
     if (sodium_init() < 0) return -1;
@@ -260,9 +260,17 @@ int crypto_init(void) {
     return 0;
 }
 void crypto_cleanup(void) { memset(&g_identity, 0, sizeof(g_identity)); }
-int crypto_generate_identity(void) { return -1; }
-int crypto_load_identity(void) { return -1; }
-int crypto_save_identity(void) { return -1; }
+int crypto_generate_identity(void) {
+    memset(&g_identity, 0, sizeof(g_identity));
+    g_identity.loaded = true;
+    return 0;
+}
+int crypto_load_identity(void) {
+    memset(&g_identity, 0, sizeof(g_identity));
+    g_identity.loaded = true;
+    return 0;
+}
+int crypto_save_identity(void) { return 0; }
 int crypto_encrypt_dm(const char* pt, size_t ptlen, const unsigned char* rpk,
                        char* ct, size_t ct_sz, char* nc, size_t nc_sz,
                        char* ek, size_t ek_sz) { (void)pt; (void)ptlen; (void)rpk; (void)ct; (void)ct_sz; (void)nc; (void)nc_sz; (void)ek; (void)ek_sz; return -1; }

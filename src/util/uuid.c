@@ -1,5 +1,5 @@
-#include "uuid.h"
 #include "../common.h"
+#include "uuid.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -7,7 +7,6 @@
 #ifdef _WIN32
     #include <windows.h>
     #include <bcrypt.h>
-    #pragma comment(lib, "bcrypt")
     static void random_bytes(uint8_t* buf, size_t len) {
         BCRYPT_ALG_HANDLE h;
         BCryptOpenAlgorithmProvider(&h, BCRYPT_RNG_ALGORITHM, NULL, 0);

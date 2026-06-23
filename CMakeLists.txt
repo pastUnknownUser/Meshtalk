@@ -3,7 +3,7 @@ project(meshtalk VERSION 1.0.0 LANGUAGES C)
 
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_C_EXTENSIONS OFF)
+set(CMAKE_C_EXTENSIONS ON)
 
 option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
 option(ENABLE_TLS "Enable OpenSSL TLS support" OFF)
@@ -22,13 +22,14 @@ endif()
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -pedantic")
 
 if(WIN32)
-    add_definitions(-D_WIN32_WINNT=0x0601 -DWIN32_LEAN_AND_MEAN)
+    add_definitions(-DWIN32_LEAN_AND_MEAN)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -U_WIN32_WINNT -D_WIN32_WINNT=0x0601")
     set(PLATFORM_SOURCES
         src/net/net_win.c
         src/tui/tui_win.c
     )
-    set(PLATFORM_LIBS ws2_32)
-    set(TEST_LIBS ws2_32)
+    set(PLATFORM_LIBS ws2_32 bcrypt pthread)
+    set(TEST_LIBS ws2_32 bcrypt)
 else()
     set(PLATFORM_SOURCES
         src/net/net_posix.c

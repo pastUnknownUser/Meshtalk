@@ -8,6 +8,7 @@ endif()
 set(CORE_SRC
     ${NET_SRC}
     ${CMAKE_SOURCE_DIR}/src/util/json.c
+    ${CMAKE_SOURCE_DIR}/src/util/uuid.c
     ${CMAKE_SOURCE_DIR}/src/message/message.c
     ${CMAKE_SOURCE_DIR}/src/peer/peer.c
 )

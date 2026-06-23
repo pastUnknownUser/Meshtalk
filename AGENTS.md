@@ -18,6 +18,8 @@ build/tests/test_simulator                             # 100-node sim, 30s
 
 No linter, formatter, or CI config exists. Compiler warnings via `-Wall -Wextra -pedantic` baked into CMakeLists.txt.
 
+Pre-built binaries are in `prebuilt/`: `meshtalk-linux-arm64`, `meshtalk-windows-x64.exe`, `meshtalk-windows-arm64.exe`.
+
 ## Architecture
 
 Decentralized P2P LAN chat. Every node is both client + server. No central server.
@@ -27,8 +29,9 @@ Decentralized P2P LAN chat. Every node is both client + server. No central serve
 - **Flood routing** — forward every message to all connected peers except the sender
 - **Dedup** — LRU cache of 2000 UUIDs, 60s TTL
 - **Message history** — last 1000 messages per room in memory
+- **Wire protocol** — JSON over TCP, max packet 65536 bytes, full spec in `docs/protocol.md`
 
-Entry point: `src/main.c:939` — `app_init()` → subsystems → threads → event loop.
+Entry point: `src/main.c:938` — `app_init()` → subsystems → threads → event loop.
 
 ## Key directories
 
@@ -39,11 +42,13 @@ Entry point: `src/main.c:939` — `app_init()` → subsystems → threads → ev
 | `src/net/net_posix.c` / `net_win.c` | Socket abstraction (compile-time selected) |
 | `src/tui/tui_posix.c` / `tui_win.c` | Terminal UI (ncurses / Console API) |
 | `src/message/message.c` | Serialization, dedup cache, flood routing |
+| `src/peer/peer.c` | Peer list, connection lifecycle, reconnection |
 | `src/discovery/discovery.c` | UDP broadcast discovery |
+| `src/room/room.c` | Chat rooms, presence, message history |
 | `src/crypto/crypto.c` | libsodium XChaCha20-Poly1305 + Box |
 | `src/persistence/storage.c` | JSON file I/O for config/peers/rooms/keys |
 | `src/util/json.c` | Minimal hand-rolled JSON (no external dep) |
-| `tests/test_simulator.c` | 100-node virtual network integration test |
+| `src/util/uuid.c` | UUIDv4 generation |
 
 ## Threading model
 
@@ -58,10 +63,12 @@ Entry point: `src/main.c:939` — `app_init()` → subsystems → threads → ev
 
 ## Platform quirks
 
+- **Single-machine testing**: edit `TCP_PORT` in `src/common.h:22` before building the second instance; use a second build directory or rebuild after the change
 - **Linux** requires `libncurses-dev`, optional `libsodium-dev`, `libssl-dev`
 - **macOS** ncurses is included; libsodium via `brew install libsodium`
 - **Windows** needs CMake + Visual Studio; falls back to Console API if PDCurses unavailable
 - `_WIN32_WINNT=0x0601` and `WIN32_LEAN_AND_MEAN` set for Windows builds
+- **Config**: `~/.meshtalk/meshtalk.json` stores node ID/username; peers, rooms, and keys in adjacent files
 
 ## Conventions
 

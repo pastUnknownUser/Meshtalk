@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <sys/select.h>
 
 int net_init(void) {
     signal(SIGPIPE, SIG_IGN);

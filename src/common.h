@@ -1,9 +1,16 @@
 #pragma once
 
+#if !defined(_WIN32) && !defined(_POSIX_C_SOURCE)
+#define _POSIX_C_SOURCE 199309L
+#endif
+
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <time.h>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 #define UUID_STR_LEN      36
 #define MAX_USERNAME_LEN  32
@@ -77,13 +84,21 @@ typedef struct {
     #define MSCT_EXPORT
 #endif
 
+#ifdef _WIN32
+static inline uint64_t now_ms(void) {
+    return (uint64_t)GetTickCount64();
+}
+static inline void msleep(uint32_t ms) {
+    Sleep(ms);
+}
+#else
 static inline uint64_t now_ms(void) {
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
     return (uint64_t)ts.tv_sec * 1000 + (uint64_t)ts.tv_nsec / 1000000;
 }
-
 static inline void msleep(uint32_t ms) {
     struct timespec ts = { ms / 1000, (long)(ms % 1000) * 1000000 };
     nanosleep(&ts, NULL);
 }
+#endif
